@@ -3,14 +3,9 @@
  * Click nbfs://nbhost/SystemFileSystem/Templates/UnitTests/JUnit5TestClass.java to edit this template
  */
 package com.mycompany.userinformation1;
-
 import org.junit.jupiter.api.*;
-import org.junit.jupiter.api.function.Executable;
-import java.util.List;
-import java.util.ArrayList;
 import static org.junit.jupiter.api.Assertions.*;
-
-import static org.junit.jupiter.api.Assertions.*;
+import java.util.Date;
 
 
 /**
@@ -19,685 +14,466 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 public class MessageTest {
     
-       private static final String VALID_RECIPIENT = "+1234567890";
-    private static final String VALID_CONTENT = "Hello, this is a test message!";
-    private static final int MAX_MESSAGE_LENGTH = 250;
+    public MessageTest() {
+    }
+    private Message testMessage;
+    private Message testMessage2;
+    
+  
+    
+    @BeforeAll
+    public static void setUpClass() {
+        System.out.println("Starting Message Class Tests...");
+    }
+    
+    @AfterAll
+    public static void tearDownClass() {
+        System.out.println("Completed Message Class Tests.");
+    }
     
     @BeforeEach
-    void setUp() {
-        // Clear all messages before each test
-        Message.clearAllMessages();
+    public void setUp() {
+        // Create test messages before each test
+        testMessage = new Message(
+            "Hello, this is a test message",
+            "+27721234567",
+            Message.FLAG_SENT,
+            "+27821234567"
+        );
+        
+        testMessage2 = new Message(
+            "Another test message content here",
+            "+27729876543",
+            Message.FLAG_STORED,
+            "+27829876543"
+        );
     }
     
     @AfterEach
-    void tearDown() {
-        // Clean up after each test
-        Message.clearAllMessages();
+    public void tearDown() {
+        testMessage = null;
+        testMessage2 = null;
     }
     
-    // ==================== CONSTRUCTOR TESTS ====================
+    // ========== CONSTRUCTOR TESTS ==========
     
     @Test
-    @Order(1)
-    void testConstructorWithValidInput() {
-        Message message = new Message(VALID_RECIPIENT, VALID_CONTENT);
+    public void testConstructorWithMinimumParameters() {
+        Message msg = new Message(
+            "Test content",
+            "+27720000000",
+            Message.FLAG_DISPATCHED,
+            "+27820000000"
+        );
         
-        assertNotNull(message);
-        assertEquals(VALID_RECIPIENT, message.getRecipient());
-        assertEquals(VALID_CONTENT, message.getContent());
-        assertNotNull(message.getMessageID());
-        assertTrue(message.getMessageID().startsWith("MSG"));
-        assertEquals(1, message.getMessageNumber());
-        assertTrue(message.getTimestamp() > 0);
-        assertNotNull(message.getMessageHash());
-        assertEquals(1, Message.getTotalMessagesSent());
-        assertEquals(1, Message.getAllMessages().size());
-    }
-    
-    @Test
-    @Order(2)
-    void testConstructorWithNullContent() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            new Message(VALID_RECIPIENT, null);
-        });
+        assertNotNull(msg.getMessageID(), "Message ID should be generated");
+        assertNotNull(msg.getMessageHash(), "Message hash should be generated");
+        assertNotNull(msg.getTimestamp(), "Timestamp should be set");
+        assertFalse(msg.isRead(), "Message should not be read by default");
+        assertEquals(0, msg.getMessageNumber(), "Message number should be 0 by default");
     }
     
     @Test
-    @Order(3)
-    void testConstructorWithEmptyContent() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            new Message(VALID_RECIPIENT, "");
-        });
+    public void testConstructorWithAllParameters() {
+        Date customDate = new Date();
+        Message msg = new Message(
+            "MSG123", "HASH123", "Content", "+27720000000",
+            Message.FLAG_SENT, "+27820000000", customDate, 42, true
+        );
+        
+        assertEquals("MSG123", msg.getMessageID(), "Message ID should match");
+        assertEquals("HASH123", msg.getMessageHash(), "Message hash should match");
+        assertEquals("Content", msg.getContent(), "Content should match");
+        assertEquals("+27720000000", msg.getRecipient(), "Recipient should match");
+        assertEquals(Message.FLAG_SENT, msg.getFlag(), "Flag should match");
+        assertEquals("+27820000000", msg.getSender(), "Sender should match");
+        assertEquals(customDate, msg.getTimestamp(), "Timestamp should match");
+        assertEquals(42, msg.getMessageNumber(), "Message number should match");
+        assertTrue(msg.isRead(), "Read status should match");
+    }
+    
+    // ========== VALIDATION TESTS ==========
+    
+    @Test
+    public void testValidMessage() {
+        assertTrue(testMessage.isValid(), "Valid message should pass validation");
     }
     
     @Test
-    @Order(4)
-    void testConstructorWithWhitespaceContent() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            new Message(VALID_RECIPIENT, "   ");
-        });
+    public void testInvalidMessageWithNullContent() {
+        Message invalidMsg = new Message(
+            null, "+27721234567", Message.FLAG_SENT, "+27821234567"
+        );
+        assertFalse(invalidMsg.isValid(), "Message with null content should be invalid");
     }
     
     @Test
-    @Order(5)
-    void testConstructorWithExceedingMaxLength() {
-        String longContent = "A".repeat(MAX_MESSAGE_LENGTH + 1);
-        assertThrows(IllegalArgumentException.class, () -> {
-            new Message(VALID_RECIPIENT, longContent);
-        });
+    public void testInvalidMessageWithEmptyContent() {
+        Message invalidMsg = new Message(
+            "", "+27721234567", Message.FLAG_SENT, "+27821234567"
+        );
+        assertFalse(invalidMsg.isValid(), "Message with empty content should be invalid");
     }
     
     @Test
-    @Order(6)
-    void testConstructorWithExactMaxLength() {
-        String exactContent = "A".repeat(MAX_MESSAGE_LENGTH);
-        Message message = new Message(VALID_RECIPIENT, exactContent);
-        assertNotNull(message);
-        assertEquals(MAX_MESSAGE_LENGTH, message.getContentLength());
-        assertEquals(0, message.getRemainingCharacters());
+    public void testInvalidMessageWithWhitespaceContent() {
+        Message invalidMsg = new Message(
+            "   ", "+27721234567", Message.FLAG_SENT, "+27821234567"
+        );
+        assertFalse(invalidMsg.isValid(), "Message with whitespace only should be invalid");
     }
     
     @Test
-    @Order(7)
-    void testMessageNumberIncrements() {
-        Message msg1 = new Message(VALID_RECIPIENT, "First message");
-        Message msg2 = new Message(VALID_RECIPIENT, "Second message");
-        Message msg3 = new Message(VALID_RECIPIENT, "Third message");
-        
-        assertEquals(1, msg1.getMessageNumber());
-        assertEquals(2, msg2.getMessageNumber());
-        assertEquals(3, msg3.getMessageNumber());
-        assertEquals(3, Message.getTotalMessagesSent());
-    }
-    
-    // ==================== HASH AND INTEGRITY TESTS ====================
-    
-    @Test
-    @Order(8)
-    void testCalculateMessageHash() {
-        Message message = new Message(VALID_RECIPIENT, "Hello world");
-        String hash = message.calculateMessageHash();
-        
-        assertNotNull(hash);
-        assertTrue(hash.contains(":"));
-        assertTrue(hash.matches("^[0-9]+:.*"));
-    }
-    
-    @Test
-    @Order(9)
-    void testVerifyIntegrityValid() {
-        Message message = new Message(VALID_RECIPIENT, "Test content");
-        assertTrue(message.verifyIntegrity());
-    }
-    
-    @Test
-    @Order(10)
-    void testVerifyIntegrityAfterContentChange() {
-        Message message = new Message(VALID_RECIPIENT, "Original content");
-        String originalHash = message.getMessageHash();
-        
-        message.setContent("Modified content");
-        assertNotEquals(originalHash, message.getMessageHash());
-        assertTrue(message.verifyIntegrity());
-    }
-    
-    @Test
-    @Order(11)
-    void testHashWithMultipleMessages() {
-        Message msg1 = new Message(VALID_RECIPIENT, "First message");
-        Message msg2 = new Message(VALID_RECIPIENT, "Second message");
-        
-        assertNotEquals(msg1.getMessageHash(), msg2.getMessageHash());
-    }
-    
-    @Test
-    @Order(12)
-    void testHashWithSameContent() {
-        Message msg1 = new Message(VALID_RECIPIENT, "Same content");
-        Message msg2 = new Message("+1987654321", "Same content");
-        
-        assertNotEquals(msg1.getMessageHash(), msg2.getMessageHash());
-    }
-    
-    // ==================== GETTER TESTS ====================
-    
-    @Test
-    @Order(13)
-    void testGetters() {
-        Message message = new Message(VALID_RECIPIENT, VALID_CONTENT);
-        
-        assertNotNull(message.getMessageID());
-        assertEquals(VALID_RECIPIENT, message.getRecipient());
-        assertEquals(VALID_CONTENT, message.getContent());
-        assertNotNull(message.getMessageHash());
-        assertEquals(1, message.getMessageNumber());
-        assertTrue(message.getTimestamp() > 0);
-        assertEquals(VALID_CONTENT.length(), message.getContentLength());
-        assertEquals(MAX_MESSAGE_LENGTH - VALID_CONTENT.length(), message.getRemainingCharacters());
-    }
-    
-    // ==================== SETTER TESTS ====================
-    
-    @Test
-    @Order(14)
-    void testSetContentValid() {
-        Message message = new Message(VALID_RECIPIENT, "Original content");
-        String newContent = "Updated content";
-        
-        message.setContent(newContent);
-        assertEquals(newContent, message.getContent());
-        assertTrue(message.verifyIntegrity());
-    }
-    
-    @Test
-    @Order(15)
-    void testSetContentNull() {
-        Message message = new Message(VALID_RECIPIENT, "Original content");
-        assertThrows(IllegalArgumentException.class, () -> {
-            message.setContent(null);
-        });
-    }
-    
-    @Test
-    @Order(16)
-    void testSetContentEmpty() {
-        Message message = new Message(VALID_RECIPIENT, "Original content");
-        assertThrows(IllegalArgumentException.class, () -> {
-            message.setContent("");
-        });
-    }
-    
-    @Test
-    @Order(17)
-    void testSetContentTooLong() {
-        Message message = new Message(VALID_RECIPIENT, "Original content");
-        String longContent = "A".repeat(MAX_MESSAGE_LENGTH + 1);
-        assertThrows(IllegalArgumentException.class, () -> {
-            message.setContent(longContent);
-        });
-    }
-    
-    @Test
-    @Order(18)
-    void testSetRecipientValid() {
-        Message message = new Message(VALID_RECIPIENT, VALID_CONTENT);
-        String newRecipient = "+19998887777";
-        
-        message.setRecipient(newRecipient);
-        assertEquals(newRecipient, message.getRecipient());
-    }
-    
-    @Test
-    @Order(19)
-    void testSetRecipientNull() {
-        Message message = new Message(VALID_RECIPIENT, VALID_CONTENT);
-        assertThrows(IllegalArgumentException.class, () -> {
-            message.setRecipient(null);
-        });
-    }
-    
-    @Test
-    @Order(20)
-    void testSetRecipientEmpty() {
-        Message message = new Message(VALID_RECIPIENT, VALID_CONTENT);
-        assertThrows(IllegalArgumentException.class, () -> {
-            message.setRecipient("");
-        });
-    }
-    
-    // ==================== STATIC METHOD TESTS ====================
-    
-    @Test
-    @Order(21)
-    void testGetAllMessages() {
-        Message msg1 = new Message(VALID_RECIPIENT, "Message 1");
-        Message msg2 = new Message(VALID_RECIPIENT, "Message 2");
-        
-        List<Message> allMessages = Message.getAllMessages();
-        assertEquals(2, allMessages.size());
-        assertTrue(allMessages.contains(msg1));
-        assertTrue(allMessages.contains(msg2));
-        
-        // Verify it returns a copy
-        allMessages.clear();
-        assertEquals(2, Message.getAllMessages().size());
-    }
-    
-    @Test
-    @Order(22)
-    void testGetTotalMessagesSent() {
-        assertEquals(0, Message.getTotalMessagesSent());
-        
-        new Message(VALID_RECIPIENT, "First");
-        assertEquals(1, Message.getTotalMessagesSent());
-        
-        new Message(VALID_RECIPIENT, "Second");
-        assertEquals(2, Message.getTotalMessagesSent());
-    }
-    
-    @Test
-    @Order(23)
-    void testDeleteMessageByIndex() {
-        Message msg1 = new Message(VALID_RECIPIENT, "First");
-        Message msg2 = new Message(VALID_RECIPIENT, "Second");
-        Message msg3 = new Message(VALID_RECIPIENT, "Third");
-        
-        assertEquals(3, Message.getTotalMessagesSent());
-        
-        Message deleted = Message.deleteMessage(1);
-        assertNotNull(deleted);
-        assertEquals(msg2.getMessageID(), deleted.getMessageID());
-        assertEquals(2, Message.getAllMessages().size());
-        assertEquals(2, Message.getTotalMessagesSent());
-        
-        // Verify remaining messages
-        List<Message> remaining = Message.getAllMessages();
-        assertEquals(msg1.getMessageID(), remaining.get(0).getMessageID());
-        assertEquals(msg3.getMessageID(), remaining.get(1).getMessageID());
-    }
-    
-    @Test
-    @Order(24)
-    void testDeleteMessageByInvalidIndex() {
-        new Message(VALID_RECIPIENT, "Test");
-        
-        Message deleted = Message.deleteMessage(5);
-        assertNull(deleted);
-        assertEquals(1, Message.getAllMessages().size());
-        assertEquals(1, Message.getTotalMessagesSent());
-        
-        deleted = Message.deleteMessage(-1);
-        assertNull(deleted);
-        assertEquals(1, Message.getAllMessages().size());
-    }
-    
-    @Test
-    @Order(25)
-    void testDeleteMessageByID() {
-        Message msg1 = new Message(VALID_RECIPIENT, "First");
-        Message msg2 = new Message(VALID_RECIPIENT, "Second");
-        
-        Message deleted = Message.deleteMessageByID(msg1.getMessageID());
-        assertNotNull(deleted);
-        assertEquals(msg1.getMessageID(), deleted.getMessageID());
-        assertEquals(1, Message.getAllMessages().size());
-        assertEquals(1, Message.getTotalMessagesSent());
-        
-        // Try to delete non-existent message
-        deleted = Message.deleteMessageByID("NONEXISTENT");
-        assertNull(deleted);
-        assertEquals(1, Message.getAllMessages().size());
-    }
-    
-    @Test
-    @Order(26)
-    void testFindMessageByID() {
-        Message msg1 = new Message(VALID_RECIPIENT, "First");
-        Message msg2 = new Message(VALID_RECIPIENT, "Second");
-        
-        Message found = Message.findMessageByID(msg1.getMessageID());
-        assertNotNull(found);
-        assertEquals(msg1.getMessageID(), found.getMessageID());
-        
-        found = Message.findMessageByID(msg2.getMessageID());
-        assertNotNull(found);
-        assertEquals(msg2.getMessageID(), found.getMessageID());
-        
-        found = Message.findMessageByID("NONEXISTENT");
-        assertNull(found);
-    }
-    
-    @Test
-    @Order(27)
-    void testClearAllMessages() {
-        new Message(VALID_RECIPIENT, "First");
-        new Message(VALID_RECIPIENT, "Second");
-        new Message(VALID_RECIPIENT, "Third");
-        
-        assertEquals(3, Message.getTotalMessagesSent());
-        assertEquals(3, Message.getAllMessages().size());
-        
-        Message.clearAllMessages();
-        
-        assertEquals(0, Message.getTotalMessagesSent());
-        assertEquals(0, Message.getAllMessages().size());
-    }
-    
-    // ==================== SEARCH TESTS ====================
-    
-    @Test
-    @Order(28)
-    void testSearchByRecipient() {
-        new Message("+1234567890", "Message 1");
-        new Message("+1234567890", "Message 2");
-        new Message("+1987654321", "Message 3");
-        
-        List<Message> results = Message.searchByRecipient("1234567890");
-        assertEquals(2, results.size());
-        
-        results = Message.searchByRecipient("987654321");
-        assertEquals(1, results.size());
-        
-        results = Message.searchByRecipient("999");
-        assertEquals(0, results.size());
-    }
-    
-    @Test
-    @Order(29)
-    void testSearchByRecipientNull() {
-        new Message(VALID_RECIPIENT, "Test");
-        List<Message> results = Message.searchByRecipient(null);
-        assertTrue(results.isEmpty());
-    }
-    
-    @Test
-    @Order(30)
-    void testSearchByRecipientEmpty() {
-        new Message(VALID_RECIPIENT, "Test");
-        List<Message> results = Message.searchByRecipient("");
-        assertTrue(results.isEmpty());
-    }
-    
-    @Test
-    @Order(31)
-    void testSearchByKeyword() {
-        new Message(VALID_RECIPIENT, "Hello world");
-        new Message(VALID_RECIPIENT, "Hello there");
-        new Message(VALID_RECIPIENT, "Goodbye world");
-        
-        List<Message> results = Message.searchByKeyword("Hello");
-        assertEquals(2, results.size());
-        
-        results = Message.searchByKeyword("world");
-        assertEquals(2, results.size());
-        
-        results = Message.searchByKeyword("Goodbye");
-        assertEquals(1, results.size());
-        
-        results = Message.searchByKeyword("nonexistent");
-        assertEquals(0, results.size());
-    }
-    
-    @Test
-    @Order(32)
-    void testSearchByKeywordNull() {
-        new Message(VALID_RECIPIENT, "Test");
-        List<Message> results = Message.searchByKeyword(null);
-        assertTrue(results.isEmpty());
-    }
-    
-    @Test
-    @Order(33)
-    void testSearchByKeywordCaseInsensitive() {
-        new Message(VALID_RECIPIENT, "Hello World");
-        
-        List<Message> results = Message.searchByKeyword("hello");
-        assertEquals(1, results.size());
-        
-        results = Message.searchByKeyword("HELLO");
-        assertEquals(1, results.size());
-        
-        results = Message.searchByKeyword("world");
-        assertEquals(1, results.size());
-    }
-    
-    // ==================== DATE RANGE TESTS ====================
-    
-    @Test
-    @Order(34)
-    void testGetMessagesByDateRange() throws InterruptedException {
-        Message msg1 = new Message(VALID_RECIPIENT, "First");
-        Thread.sleep(10);
-        long midTime = System.currentTimeMillis();
-        Thread.sleep(10);
-        Message msg2 = new Message(VALID_RECIPIENT, "Second");
-        Thread.sleep(10);
-        Message msg3 = new Message(VALID_RECIPIENT, "Third");
-        
-        List<Message> results = Message.getMessagesByDateRange(0, midTime);
-        assertEquals(1, results.size());
-        assertEquals(msg1.getMessageID(), results.get(0).getMessageID());
-        
-        results = Message.getMessagesByDateRange(midTime, Long.MAX_VALUE);
-        assertEquals(2, results.size());
-    }
-    
-    // ==================== RECENT MESSAGES TESTS ====================
-    
-    @Test
-    @Order(35)
-    void testGetRecentMessages() {
-        Message msg1 = new Message(VALID_RECIPIENT, "First");
-        Message msg2 = new Message(VALID_RECIPIENT, "Second");
-        Message msg3 = new Message(VALID_RECIPIENT, "Third");
-        Message msg4 = new Message(VALID_RECIPIENT, "Fourth");
-        Message msg5 = new Message(VALID_RECIPIENT, "Fifth");
-        
-        List<Message> recent = Message.getRecentMessages(3);
-        assertEquals(3, recent.size());
-        assertEquals(msg3.getMessageID(), recent.get(0).getMessageID());
-        assertEquals(msg4.getMessageID(), recent.get(1).getMessageID());
-        assertEquals(msg5.getMessageID(), recent.get(2).getMessageID());
-        
-        recent = Message.getRecentMessages(10);
-        assertEquals(5, recent.size());
-        
-        recent = Message.getRecentMessages(0);
-        assertTrue(recent.isEmpty());
-        
-        recent = Message.getRecentMessages(-1);
-        assertTrue(recent.isEmpty());
-    }
-    
-    // ==================== SAMPLE MESSAGES TESTS ====================
-    
-    @Test
-    @Order(36)
-    void testCreateSampleMessages() {
-        Message.createSampleMessages(3);
-        
-        assertEquals(3, Message.getTotalMessagesSent());
-        List<Message> messages = Message.getAllMessages();
-        
-        for (Message msg : messages) {
-            assertNotNull(msg.getRecipient());
-            assertNotNull(msg.getContent());
-            assertTrue(msg.getContentLength() > 0);
+    public void testInvalidMessageWithExceedingMaxLength() {
+        StringBuilder longContent = new StringBuilder();
+        for (int i = 0; i <= Message.MAX_MESSAGE_LENGTH; i++) {
+            longContent.append("a");
         }
+        Message invalidMsg = new Message(
+            longContent.toString(), "+27721234567", Message.FLAG_SENT, "+27821234567"
+        );
+        assertFalse(invalidMsg.isValid(), "Message exceeding max length should be invalid");
     }
     
     @Test
-    @Order(37)
-    void testCreateSampleMessagesZero() {
-        Message.createSampleMessages(0);
-        assertEquals(0, Message.getTotalMessagesSent());
+    public void testInvalidMessageWithWrongPhonePrefix() {
+        Message invalidMsg = new Message(
+            "Test content", "0712345678", Message.FLAG_SENT, "+27821234567"
+        );
+        assertFalse(invalidMsg.isValid(), "Message without +27 prefix should be invalid");
     }
     
-    // ==================== INTEGRITY REPORT TESTS ====================
+    @Test
+    public void testInvalidMessageWithNullRecipient() {
+        Message invalidMsg = new Message(
+            "Test content", null, Message.FLAG_SENT, "+27821234567"
+        );
+        assertFalse(invalidMsg.isValid(), "Message with null recipient should be invalid");
+    }
     
     @Test
-    @Order(38)
-    void testVerifyAllMessagesIntegrity() {
-        Message msg1 = new Message(VALID_RECIPIENT, "Valid message 1");
-        Message msg2 = new Message(VALID_RECIPIENT, "Valid message 2");
+    public void testInvalidFlag() {
+        assertFalse(Message.isValidFlag("InvalidFlag"), "Invalid flag should return false");
+        assertFalse(Message.isValidFlag(""), "Empty flag should return false");
+        assertFalse(Message.isValidFlag(null), "Null flag should return false");
+    }
+    
+    @Test
+    public void testValidFlags() {
+        assertTrue(Message.isValidFlag(Message.FLAG_SENT), "FLAG_SENT should be valid");
+        assertTrue(Message.isValidFlag(Message.FLAG_STORED), "FLAG_STORED should be valid");
+        assertTrue(Message.isValidFlag(Message.FLAG_DISPATCHED), "FLAG_DISPATCHED should be valid");
+        assertTrue(Message.isValidFlag(Message.FLAG_DISREGARD), "FLAG_DISREGARD should be valid");
+    }
+    
+    // ========== MESSAGE HASH TESTS ==========
+    
+    @Test
+    public void testMessageHashFormat() {
+        testMessage.setMessageNumber(5);
+        String hash = testMessage.getMessageHash();
         
-        Message.IntegrityReport report = Message.verifyAllMessagesIntegrity();
-        assertEquals(2, report.validCount);
-        assertEquals(0, report.invalidCount);
-        assertTrue(report.invalidMessages.isEmpty());
+        // Check format: "XX:Y:WORD:WORD"
+        String[] parts = hash.split(":");
+        assertEquals(4, parts.length, "Hash should have 4 parts");
+        assertEquals(2, parts[0].length(), "First part should be 2 digits");
+        
+        // Verify numbers are digits
+        assertTrue(parts[0].matches("\\d{2}"), "First part should be digits");
+        assertTrue(parts[1].matches("\\d+"), "Second part should be a number");
     }
     
-    // ==================== UTILITY METHOD TESTS ====================
+    @Test
+    public void testMessageHashChangesWithContent() {
+        testMessage.setMessageNumber(1);
+        String hash1 = testMessage.getMessageHash();
+        testMessage.setContent("Different content");
+        String hash2 = testMessage.getMessageHash();
+        
+        assertNotEquals(hash1, hash2, "Changing content should change hash");
+    }
     
     @Test
-    @Order(39)
-    void testGetPreview() {
+    public void testMessageHashChangesWithMessageNumber() {
+        String hash1 = testMessage.getMessageHash();
+        testMessage.setMessageNumber(100);
+        String hash2 = testMessage.getMessageHash();
+        
+        assertNotEquals(hash1, hash2, "Changing message number should change hash");
+    }
+    
+    @Test
+    public void testMessageHashWithSingleWord() {
+        Message singleWordMsg = new Message(
+            "Hello", "+27721234567", Message.FLAG_SENT, "+27821234567"
+        );
+        singleWordMsg.setMessageNumber(1);
+        String hash = singleWordMsg.getMessageHash();
+        String[] parts = hash.split(":");
+        
+        assertEquals(parts[2], parts[3], "First and last word should be same for single word");
+    }
+    
+    // ========== FLAG MANAGEMENT TESTS ==========
+    
+    @Test
+    public void testUpdateFlagToValidFlag() {
+        testMessage.updateFlag(Message.FLAG_STORED);
+        assertEquals(Message.FLAG_STORED, testMessage.getFlag(), "Flag should be updated to STORED");
+        
+        testMessage.updateFlag(Message.FLAG_DISPATCHED);
+        assertEquals(Message.FLAG_DISPATCHED, testMessage.getFlag(), "Flag should be updated to DISPATCHED");
+        
+        testMessage.updateFlag(Message.FLAG_DISREGARD);
+        assertEquals(Message.FLAG_DISREGARD, testMessage.getFlag(), "Flag should be updated to DISREGARD");
+    }
+    
+    @Test
+    public void testUpdateFlagToInvalidFlag() {
+        String originalFlag = testMessage.getFlag();
+        testMessage.updateFlag("INVALID_FLAG");
+        assertEquals(originalFlag, testMessage.getFlag(), "Flag should not change when updating to invalid flag");
+    }
+    
+    @Test
+    public void testStatusChecks() {
+        Message sentMsg = new Message("Test", "+27721234567", Message.FLAG_SENT, "+27821234567");
+        assertTrue(sentMsg.isSent(), "Sent message should return true for isSent()");
+        assertFalse(sentMsg.isStored(), "Sent message should return false for isStored()");
+        assertFalse(sentMsg.isDispatched(), "Sent message should return false for isDispatched()");
+        assertFalse(sentMsg.isDisregarded(), "Sent message should return false for isDisregarded()");
+        
+        Message storedMsg = new Message("Test", "+27721234567", Message.FLAG_STORED, "+27821234567");
+        assertTrue(storedMsg.isStored(), "Stored message should return true for isStored()");
+        
+        Message dispatchedMsg = new Message("Test", "+27721234567", Message.FLAG_DISPATCHED, "+27821234567");
+        assertTrue(dispatchedMsg.isDispatched(), "Dispatched message should return true for isDispatched()");
+        
+        Message disregardedMsg = new Message("Test", "+27721234567", Message.FLAG_DISREGARD, "+27821234567");
+        assertTrue(disregardedMsg.isDisregarded(), "Disregarded message should return true for isDisregarded()");
+    }
+    
+    // ========== READ STATUS TESTS ==========
+    
+    @Test
+    public void testMarkAsRead() {
+        assertFalse(testMessage.isRead(), "Message should not be read initially");
+        testMessage.markAsRead();
+        assertTrue(testMessage.isRead(), "Message should be read after marking");
+    }
+    
+    // ========== GETTER AND SETTER TESTS ==========
+    
+    @Test
+    public void testSetContent() {
+        String newContent = "Updated content for testing";
+        testMessage.setContent(newContent);
+        assertEquals(newContent, testMessage.getContent(), "Content should be updated");
+        // Hash should be recalculated
+        assertNotNull(testMessage.getMessageHash(), "Hash should be recalculated");
+    }
+    
+    @Test
+    public void testSetRecipient() {
+        String newRecipient = "+27729999999";
+        testMessage.setRecipient(newRecipient);
+        assertEquals(newRecipient, testMessage.getRecipient(), "Recipient should be updated");
+    }
+    
+    @Test
+    public void testSetSender() {
+        String newSender = "+27829999999";
+        testMessage.setSender(newSender);
+        assertEquals(newSender, testMessage.getSender(), "Sender should be updated");
+    }
+    
+    @Test
+    public void testSetMessageNumber() {
+        testMessage.setMessageNumber(99);
+        assertEquals(99, testMessage.getMessageNumber(), "Message number should be updated");
+        // Hash should be recalculated
+        assertNotNull(testMessage.getMessageHash(), "Hash should be recalculated");
+    }
+    
+    // ========== UTILITY METHOD TESTS ==========
+    
+    @Test
+    public void testGetFormattedTimestamp() {
+        String formatted = testMessage.getFormattedTimestamp();
+        assertNotNull(formatted, "Formatted timestamp should not be null");
+        assertTrue(formatted.matches("\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}"), 
+                   "Formatted timestamp should match pattern");
+    }
+    
+    @Test
+    public void testGetSummaryShortMessage() {
         String shortContent = "Short message";
-        Message shortMsg = new Message(VALID_RECIPIENT, shortContent);
-        assertEquals(shortContent, shortMsg.getPreview());
-        
-        String longContent = "This is a very long message that should be truncated to 30 characters";
-        Message longMsg = new Message(VALID_RECIPIENT, longContent);
-        String preview = longMsg.getPreview();
-        assertEquals(30, preview.length());
-        assertTrue(preview.endsWith("..."));
+        Message shortMsg = new Message(shortContent, "+27721234567", Message.FLAG_SENT, "+27821234567");
+        assertEquals(shortContent, shortMsg.getSummary(), 
+                    "Summary should return full content for short messages");
     }
     
     @Test
-    @Order(40)
-    void testToString() {
-        Message message = new Message(VALID_RECIPIENT, VALID_CONTENT);
-        String toString = message.toString();
+    public void testGetSummaryLongMessage() {
+        String longContent = "This is a very long message that exceeds the fifty character limit for the summary method testing";
+        Message longMsg = new Message(longContent, "+27721234567", Message.FLAG_SENT, "+27821234567");
+        String summary = longMsg.getSummary();
         
-        assertTrue(toString.contains("Message{"));
-        assertTrue(toString.contains("id='"));
-        assertTrue(toString.contains("to='"));
-        assertTrue(toString.contains("content='"));
-        assertTrue(toString.contains("hash='"));
-        assertTrue(toString.contains("#"));
+        assertTrue(summary.length() <= 50, "Summary should be shortened");
+        assertTrue(summary.endsWith("..."), "Summary should end with ellipsis");
+        assertEquals(50, summary.length(), "Summary should be 50 characters including ellipsis");
     }
     
     @Test
-    @Order(41)
-    void testEqualsAndHashCode() {
-        Message msg1 = new Message(VALID_RECIPIENT, "Content");
-        Message msg2 = new Message(VALID_RECIPIENT, "Different content");
-        Message msg3 = Message.findMessageByID(msg1.getMessageID());
-        
-        assertEquals(msg1, msg1);
-        assertEquals(msg1, msg3);
-        assertNotEquals(msg1, msg2);
-        assertNotEquals(null, msg1);
-        assertNotEquals(msg1, "String");
-        
-        assertEquals(msg1.hashCode(), msg3.hashCode());
-        assertNotEquals(msg1.hashCode(), msg2.hashCode());
-    }
-    
-    // ==================== LOAD/EXPORT TESTS ====================
-    
-    @Test
-    @Order(42)
-    void testExportAndLoadMessages() {
-        Message msg1 = new Message(VALID_RECIPIENT, "Message 1");
-        Message msg2 = new Message("+1987654321", "Message 2");
-        
-        List<Object[]> exportData = Message.exportMessages();
-        assertEquals(2, exportData.size());
-        
-        Message.clearAllMessages();
-        assertEquals(0, Message.getTotalMessagesSent());
-        
-        Message.loadMessages(exportData);
-        assertEquals(2, Message.getTotalMessagesSent());
-        
-        List<Message> loadedMessages = Message.getAllMessages();
-        assertEquals(msg1.getMessageID(), loadedMessages.get(0).getMessageID());
-        assertEquals(msg2.getMessageID(), loadedMessages.get(1).getMessageID());
+    public void testGetLength() {
+        String content = "Hello World";
+        Message msg = new Message(content, "+27721234567", Message.FLAG_SENT, "+27821234567");
+        assertEquals(content.length(), msg.getLength(), "Message length should match content length");
     }
     
     @Test
-    @Order(43)
-    void testLoadEmptyMessages() {
-        List<Object[]> emptyData = new ArrayList<>();
-        Message.loadMessages(emptyData);
+    public void testCompareLength() {
+        Message shorterMsg = new Message("Short", "+27721234567", Message.FLAG_SENT, "+27821234567");
+        Message longerMsg = new Message("This is a longer message", "+27721234567", Message.FLAG_SENT, "+27821234567");
         
-        assertEquals(0, Message.getTotalMessagesSent());
-        assertTrue(Message.getAllMessages().isEmpty());
+        assertTrue(shorterMsg.compareLength(longerMsg) < 0, 
+                   "Shorter message should be less than longer message");
+        assertTrue(longerMsg.compareLength(shorterMsg) > 0, 
+                   "Longer message should be greater than shorter message");
+        assertEquals(0, testMessage.compareLength(testMessage), 
+                    "Same length messages should be equal");
     }
     
-    // ==================== EDGE CASE TESTS ====================
+    // ========== DISPLAY METHOD TESTS ==========
     
     @Test
-    @Order(44)
-    void testMessageWithSpecialCharacters() {
-        String specialContent = "Hello! @#$%^&*()_+{}:\"<>?";
-        Message message = new Message(VALID_RECIPIENT, specialContent);
-        
-        assertEquals(specialContent, message.getContent());
-        assertTrue(message.verifyIntegrity());
+    public void testDisplayFullDetails() {
+        // Just verify it doesn't throw any exceptions
+        assertDoesNotThrow(() -> testMessage.displayFullDetails(), 
+                          "displayFullDetails() should not throw exceptions");
     }
     
-    @Test
-    @Order(45)
-    void testMessageWithUnicode() {
-        String unicodeContent = "Hello 世界 🌍";
-        Message message = new Message(VALID_RECIPIENT, unicodeContent);
-        
-        assertEquals(unicodeContent, message.getContent());
-        assertTrue(message.verifyIntegrity());
-    }
+    // ========== STRING REPRESENTATION TESTS ==========
     
     @Test
-    @Order(46)
-    void testMessageWithNewlines() {
-        String multilineContent = "Line 1\nLine 2\nLine 3";
-        Message message = new Message(VALID_RECIPIENT, multilineContent);
-        
-        assertEquals(multilineContent, message.getContent());
-        assertTrue(message.verifyIntegrity());
+    public void testToString() {
+        String toStringResult = testMessage.toString();
+        assertTrue(toStringResult.contains(testMessage.getFlag()), 
+                  "toString should contain flag");
+        assertTrue(toStringResult.contains(testMessage.getSender()), 
+                  "toString should contain sender");
+        assertTrue(toStringResult.contains(testMessage.getRecipient()), 
+                  "toString should contain recipient");
+        assertTrue(toStringResult.contains(testMessage.getSummary()), 
+                  "toString should contain summary");
     }
     
+    // ========== EQUALITY TESTS ==========
+    
     @Test
-    @Order(47)
-    void testLargeNumberOfMessages() {
-        int messageCount = 100;
-        for (int i = 0; i < messageCount; i++) {
-            new Message(VALID_RECIPIENT, "Message " + i);
-        }
-        
-        assertEquals(messageCount, Message.getTotalMessagesSent());
-        assertEquals(messageCount, Message.getAllMessages().size());
+    public void testEqualsSameObject() {
+        assertEquals(testMessage, testMessage, "Message should equal itself");
     }
     
     @Test
-    @Order(48)
-    void testDisplayMethodsDoNotThrowExceptions() {
-        Message message = new Message(VALID_RECIPIENT, VALID_CONTENT);
-        
-        assertDoesNotThrow(() -> message.displayMessage());
-        assertDoesNotThrow(() -> Message.displayAllMessages());
-        assertDoesNotThrow(() -> Message.displayStatistics());
+    public void testEqualsDifferentMessage() {
+        assertNotEquals(testMessage, testMessage2, "Different messages should not be equal");
     }
     
     @Test
-    @Order(49)
-    void testIntegrityAfterMultipleModifications() {
-        Message message = new Message(VALID_RECIPIENT, "Original");
-        
-        message.setContent("Modified 1");
-        assertTrue(message.verifyIntegrity());
-        
-        message.setContent("Modified 2");
-        assertTrue(message.verifyIntegrity());
-        
-        message.setContent("Modified 3");
-        assertTrue(message.verifyIntegrity());
-        
-        message.setRecipient("+19998887777");
-        assertTrue(message.verifyIntegrity());
+    public void testEqualsNull() {
+        assertNotEquals(testMessage, null, "Message should not equal null");
     }
     
     @Test
-    @Order(50)
-    void testConcurrentMessageCreation() throws InterruptedException {
-        Thread t1 = new Thread(() -> {
-            for (int i = 0; i < 50; i++) {
-                new Message(VALID_RECIPIENT, "Thread 1 message " + i);
-            }
-        });
+    public void testHashCode() {
+        Message sameMessage = testMessage;
+        assertEquals(testMessage.hashCode(), sameMessage.hashCode(), 
+                    "Same messages should have same hashcode");
+    }
+    
+    // ========== CSV CONVERSION TESTS ==========
+    
+    @Test
+    public void testToCSV() {
+        String csv = testMessage.toCSV();
+        assertNotNull(csv, "CSV output should not be null");
+        assertTrue(csv.contains(testMessage.getMessageID()), "CSV should contain message ID");
+        assertTrue(csv.contains(testMessage.getMessageHash()), "CSV should contain message hash");
+        assertTrue(csv.contains(testMessage.getRecipient()), "CSV should contain recipient");
+    }
+    
+    @Test
+    public void testFromCSV() {
+        // Create a message and convert to CSV
+        Message originalMsg = new Message(
+            "Test CSV content", "+27721112222", Message.FLAG_DISPATCHED, "+27821112222"
+        );
+        originalMsg.setMessageNumber(42);
+        originalMsg.markAsRead();
         
-        Thread t2 = new Thread(() -> {
-            for (int i = 0; i < 50; i++) {
-                new Message(VALID_RECIPIENT, "Thread 2 message " + i);
-            }
-        });
+        String csv = originalMsg.toCSV();
+        Message reconstructedMsg = Message.fromCSV(csv);
         
-        t1.start();
-        t2.start();
-        t1.join();
-        t2.join();
+        assertNotNull(reconstructedMsg, "Message should be reconstructed from CSV");
+        assertEquals(originalMsg.getMessageID(), reconstructedMsg.getMessageID(), "Message ID should match");
+        assertEquals(originalMsg.getMessageHash(), reconstructedMsg.getMessageHash(), "Message hash should match");
+        assertEquals(originalMsg.getContent(), reconstructedMsg.getContent(), "Content should match");
+        assertEquals(originalMsg.getRecipient(), reconstructedMsg.getRecipient(), "Recipient should match");
+        assertEquals(originalMsg.getFlag(), reconstructedMsg.getFlag(), "Flag should match");
+        assertEquals(originalMsg.getSender(), reconstructedMsg.getSender(), "Sender should match");
+        assertEquals(originalMsg.getMessageNumber(), reconstructedMsg.getMessageNumber(), "Message number should match");
+        assertEquals(originalMsg.isRead(), reconstructedMsg.isRead(), "Read status should match");
+    }
+    
+    @Test
+    public void testFromCSVWithCommaInContent() {
+        Message msgWithComma = new Message(
+            "Hello, world! This has a comma", "+27721112222", Message.FLAG_SENT, "+27821112222"
+        );
+        String csv = msgWithComma.toCSV();
+        Message reconstructed = Message.fromCSV(csv);
         
-        assertEquals(100, Message.getTotalMessagesSent());
+        assertNotNull(reconstructed, "Message with comma should be reconstructed");
+        assertEquals(msgWithComma.getContent(), reconstructed.getContent(), 
+                    "Content with comma should be preserved");
+    }
+    
+    @Test
+    public void testFromCSVWithMalformedInput() {
+        Message result = Message.fromCSV("malformed,csv,line");
+        assertNull(result, "Malformed CSV should return null");
+        
+        result = Message.fromCSV("");
+        assertNull(result, "Empty CSV should return null");
+        
+        result = Message.fromCSV(null);
+        assertNull(result, "Null CSV should return null");
+    }
+    
+    // ========== UNIQUE ID GENERATION TESTS ==========
+    
+    @Test
+    public void testUniqueMessageIDs() {
+        Message msg1 = new Message("Content1", "+27721234567", Message.FLAG_SENT, "+27821234567");
+        Message msg2 = new Message("Content2", "+27721234567", Message.FLAG_SENT, "+27821234567");
+        
+        assertNotEquals(msg1.getMessageID(), msg2.getMessageID(), "Message IDs should be unique");
+    }
+    
+    // ========== TIMESTAMP TESTS ==========
+    
+    @Test
+    public void testTimestampIsSetOnCreation() {
+        Date beforeCreation = new Date();
+        Message msg = new Message("Test", "+27721234567", Message.FLAG_SENT, "+27821234567");
+        Date afterCreation = new Date();
+        
+        assertNotNull(msg.getTimestamp(), "Timestamp should not be null");
+        assertFalse(msg.getTimestamp().before(beforeCreation), 
+                   "Timestamp should be after creation start");
+        assertFalse(msg.getTimestamp().after(afterCreation), 
+                   "Timestamp should be before creation end");
     }
 }
+   
